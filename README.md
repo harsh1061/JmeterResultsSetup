@@ -88,5 +88,3 @@ By default, changes made in the Grafana UI are lost if the volume is deleted. To
 * **Bucket dropdown:** Ensure the dropdown at the top of the dashboard is set to `jmeter_results`.
 * **Time Range:** Ensure the time picker (top right) is set to a window where the test was actually running (e.g., "Last 5 minutes").
 * **JMeter Logs:** Click the yellow triangle in the top right of JMeter to check for `401` (Token error) or `404` (Bucket/Org error).
-
-Would you like me to help you create a **setup script** that automatically generates this folder structure and the initial configuration files for you?
