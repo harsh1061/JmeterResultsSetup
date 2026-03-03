@@ -32,6 +32,13 @@ services:
       - ./provisioning/dashboards:/etc/grafana/provisioning/dashboards
       # Map the actual JSON dashboard files
       - ./dashboards:/var/lib/grafana/dashboards
+  jmeter:
+    image: justb4/jmeter:latest
+    container_name: jmeter
+    volumes:
+      - ./scripts:/scripts        # Where your .jmx files live
+      - ./results:/results        # Where local CSV/Log reports will go
+    entrypoint: ["tail", "-f", "/dev/null"] # Keeps the container alive so we can run commands
   
 volumes:
   influxdb-data:
