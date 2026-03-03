@@ -1,30 +1,28 @@
-Here is the complete, consolidated **README.md** for your project. This includes the new JMeter container instructions, the automated provisioning details, and the troubleshooting steps.
 
 ---
 
 # 🚀 JMeter-InfluxDB-Grafana Performance Stack
 
-This repository contains a fully automated, containerized performance monitoring environment. It uses **Docker Compose** to orchestrate a load generator (JMeter), a time-series database (InfluxDB), and a visualization layer (Grafana).
+This repository contains a fully automated, containerized performance monitoring environment. It orchestrates a load generator (JMeter), a time-series database (InfluxDB), and a visualization layer (Grafana) using **Docker Compose**.
 
 ---
 
 ## 📂 Project Structure
 
-To ensure the automation works, keep your files organized as follows:
+Ensure your project folder is organized exactly as follows:
 
 ```text
 .
 ├── docker-compose.yml         # Container orchestration
-├── init_project.ps1           # Setup script (Run this to create folders/files)
-├── dashboards/                # Place your .json dashboards here
-│   └── jmeter-dashboard.json  # Your pre-configured dashboard
+├── dashboards/                # JSON dashboard storage
+│   └── jmeter-dashboard.json  # Your pre-configured dashboard file
 ├── scripts/                   # Place your JMeter .jmx files here
-├── results/                   # JMeter .jtl and .log files will save here
-└── provisioning/              # Auto-configuration files
+├── results/                   # JMeter results (.jtl) and logs will save here
+└── provisioning/              # Auto-configuration folders
     ├── datasources/
     │   └── datasource.yml     # Pre-connects InfluxDB to Grafana
     └── dashboards/
-        └── dashboard-provider.yml # Auto-loads the JSON dashboards
+        └── dashboard-provider.yml # Tells Grafana where to find JSON files
 
 ```
 
@@ -32,20 +30,16 @@ To ensure the automation works, keep your files organized as follows:
 
 ## ⚡ Quick Start
 
-### 1. Initialize Project
+### 1. Start the Stack
 
-Run the `init_project.ps1` script (or create the folders manually) to generate the configuration files.
-
-### 2. Start the Stack
-
-In your terminal, run:
+Open your terminal in this folder and run:
 
 ```bash
 docker-compose up -d
 
 ```
 
-### 3. Access the Tools
+### 2. Access the Tools
 
 * **Grafana:** [http://localhost:3000](https://www.google.com/search?q=http://localhost:3000) (User: `admin` | Pass: `admin`)
 * **InfluxDB:** [http://localhost:8086](https://www.google.com/search?q=http://localhost:8086) (User: `admin` | Pass: `password12345`)
@@ -56,29 +50,62 @@ docker-compose up -d
 
 ### 1. Configure JMeter (.jmx)
 
-Open your `.jmx` file and locate the **Backend Listener**. Set the following parameters:
+Open your `.jmx` file and locate the **Backend Listener**. Use these exact settings:
 
 * **influxdbUrl:** `http://influxdb:8086/api/v2/write?org=my-org&bucket=jmeter_results`
 * **influxdbToken:** `my-super-secret-token-123`
-* **application:** `my_app` (Matches the dashboard variable)
+* **application:** `my_app` (Must match the filter at the top of your Grafana dashboard)
 
-> **Note:** We use `influxdb:8086` instead of `localhost` because JMeter is running inside the Docker network.
+> **Note:** Use the hostname `influxdb` inside the JMX because JMeter is running inside the Docker network.
 
 ### 2. Execute the Test
 
-Run this command from your host machine to trigger the test inside the container:
+Run this command from your terminal to start the test:
 
 ```bash
 docker exec -it jmeter jmeter -n -t /scripts/your_test.jmx -l /results/run1.jtl
 
 ```
 
-### 3. Stopping the Test
+---
 
-To stop the test gracefully:
+## 🛑 Stopping the Test
+
+If your test is running and you need to stop it, try these methods in order:
+
+### Method 1: Graceful Shutdown (Preferred)
+
+Tells JMeter to stop starting new threads and finish active samples.
 
 ```bash
 docker exec -it jmeter /opt/apache-jmeter/bin/shutdown.sh
+
+```
+
+### Method 2: Immediate Stop (Alternative)
+
+If Method 1 doesn't work, this forces an immediate halt of the engine.
+
+```bash
+docker exec -it jmeter /opt/apache-jmeter/bin/stoptest.sh
+
+```
+
+### Method 3: Process Kill (The "Hard" Stop)
+
+If the container scripts are unresponsive, kill the Java process directly:
+
+```bash
+docker exec -it jmeter pkill -9 java
+
+```
+
+### Method 4: Service Restart
+
+As a last resort, restart the entire JMeter container to clear the memory:
+
+```bash
+docker-compose restart jmeter
 
 ```
 
@@ -88,15 +115,15 @@ docker exec -it jmeter /opt/apache-jmeter/bin/shutdown.sh
 
 ### Automation
 
-Any JSON dashboard file placed in the `./dashboards` folder is automatically imported into the **"Performance"** folder in Grafana when the container starts.
+The `jmeter-dashboard.json` file in your `./dashboards` folder is automatically imported into the **"Performance"** folder in Grafana on startup.
 
 ### Saving Changes Permanently
 
-If you modify a dashboard in the Grafana UI:
+If you edit the dashboard in the Grafana UI:
 
-1. **Export** the JSON (Share > Export > Save to file).
-2. **Verify UID:** Ensure the JSON uses `"uid": "InfluxDB_JMeter"`.
-3. **Overwrite** the file in your local `./dashboards` folder.
+1. **Export:** Go to Share > Export > Save to file.
+2. **Cleanup:** Ensure all `"datasource": { "uid": ... }` entries in the JSON are set to `"InfluxDB_JMeter"`.
+3. **Overwrite:** Replace the local `jmeter-dashboard.json` file.
 4. **Reload:** Run `docker-compose restart grafana`.
 
 ---
@@ -107,14 +134,14 @@ If you modify a dashboard in the Grafana UI:
 | --- | --- |
 | **Start everything** | `docker-compose up -d` |
 | **Stop everything** | `docker-compose down` |
-| **Reset (Delete all data)** | `docker-compose down -v` |
-| **Check logs** | `docker-compose logs -f grafana` |
-| **List Influx Buckets** | `docker exec -it influxdb influx bucket list` |
+| **Reset (Wipe all data)** | `docker-compose down -v` |
+| **View Grafana Logs** | `docker-compose logs -f grafana` |
+| **Check Influx Status** | `docker exec -it influxdb influx ping` |
 
 ---
 
 ## ⚠️ Troubleshooting
 
-* **No Data in Grafana:** Ensure the **Time Range** (top right) is set to "Last 5 minutes" and the **Bucket** variable matches `jmeter_results`.
-* **Connection Refused:** Ensure your `.jmx` points to `http://influxdb:8086`.
-* **Dashboard Empty:** Check your JSON file for the correct Data Source UID (`InfluxDB_JMeter`) and ensure the `application` tag in JMeter matches the one in Grafana.
+* **No Data in Grafana:** Ensure the **Time Range** (top right) is set correctly (e.g., "Last 5 minutes").
+* **Bucket Dropdown:** Ensure the `bucket` variable at the top of the dashboard is set to `jmeter_results`.
+* **Unauthorized (401):** Verify the `influxdbToken` in your JMX matches the one in `docker-compose.yml`.
